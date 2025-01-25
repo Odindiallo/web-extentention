@@ -143,13 +143,24 @@ CHANNEL_LAYERS = {
 
 # CORS settings
 CORS_ALLOW_ALL_ORIGINS = True  # For development only
-CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
     "chrome-extension://*",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://localhost:3003",
 ]
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^chrome-extension://.*$",
+]
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
 ]
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -161,19 +172,7 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
-    'connection',
-    'upgrade',
-    'sec-websocket-key',
-    'sec-websocket-version',
-]
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-    'HEAD',
+    'access-control-allow-credentials',
 ]
 
 REST_FRAMEWORK = {

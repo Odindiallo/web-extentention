@@ -52,17 +52,13 @@ export default function Popup() {
     const initializeSocket = () => {
       try {
         socket = io('http://localhost:8000', {
-          transports: ['websocket'],
-          upgrade: false,
+          transports: ['websocket', 'polling'],
           reconnection: true,
           reconnectionAttempts: 5,
           reconnectionDelay: 1000,
           reconnectionDelayMax: 5000,
           timeout: 10000,
-          path: '/socket.io/',
-          auth: {
-            token: localStorage.getItem('authToken')
-          },
+          withCredentials: true,
           extraHeaders: {
             'Access-Control-Allow-Credentials': 'true'
           }
@@ -72,6 +68,7 @@ export default function Popup() {
           console.log('Connected to WebSocket server');
           setSocketConnected(true);
           setError(null);
+          fetchCurrentProduct();
         });
 
         socket.on('connect_error', (err) => {
@@ -88,104 +85,68 @@ export default function Popup() {
           }
         });
 
-        socket.on('reconnect', (attemptNumber) => {
-          console.log('Reconnected after', attemptNumber, 'attempts');
-          setSocketConnected(true);
-          setError(null);
+        // Handle price updates
+        socket.on('price_update', (update: PriceUpdate) => {
+          setPriceComparisons(prev => 
+            prev.map(product => 
+              product.id === update.productId 
+                ? { ...product, current_price: update.newPrice }
+                : product
+            )
+          );
         });
 
-        socket.on('reconnect_error', (err) => {
-          console.error('Socket reconnection error:', err);
-          setError('Unable to reconnect to real-time updates. Will keep trying...');
-        });
-
-        socket.on('reconnect_failed', () => {
-          console.error('Socket reconnection failed after all attempts');
-          setError('Unable to establish real-time connection. Please refresh the page.');
-        });
-
-        socket.on('price_update', (data: PriceUpdate) => {
-          updatePriceComparisons(data);
-        });
-
-        socket.on('cart_update', (data: CartUpdate) => {
-          updateSharedCarts(data);
-        });
-
-        socket.on('error', (error: Error) => {
-          console.error('Socket error:', error);
-          setError('Error in real-time updates. Some features may be limited.');
+        // Handle cart updates
+        socket.on('cart_update', (update: CartUpdate) => {
+          setSharedCarts(prev => 
+            prev.map(cart => 
+              cart.id === update.cartId 
+                ? { ...cart, items: update.items }
+                : cart
+            )
+          );
         });
       } catch (err) {
         console.error('Socket initialization error:', err);
-        setError('Failed to initialize real-time updates. Please refresh the page.');
+        setError('Failed to initialize real-time updates');
       }
     };
 
-    const getCurrentTab = async () => {
+    const fetchCurrentProduct = async () => {
       try {
-        if (typeof window !== 'undefined' && window.chrome?.tabs) {
-          const tabs = await window.chrome.tabs.query({ active: true, currentWindow: true });
-          const currentTab = tabs[0];
-          
-          if (currentTab?.url) {
-            await fetchProductDetails(currentTab.url);
+        if (window.chrome && window.chrome.tabs) {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (tab.url) {
+            const response = await axios.post('http://localhost:8000/api/products/current', {
+              url: tab.url
+            });
+            setCurrentProduct(response.data);
+            fetchPriceComparisons(response.data.id);
           }
-        } else {
-          await fetchProductDetails('http://example.com/product/123');
         }
       } catch (err) {
-        console.error('Error getting current tab:', err);
-        setError('Failed to get current page information');
+        console.error('Error fetching current product:', err);
+        setError('Failed to fetch product information');
       } finally {
         setLoading(false);
       }
     };
 
-    initializeSocket();
-    void getCurrentTab();
-
-    return () => {
-      if (socket) {
-        socket.disconnect();
+    const fetchPriceComparisons = async (productId: number) => {
+      try {
+        const response = await axios.get(`http://localhost:8000/api/products/${productId}/comparisons`);
+        setPriceComparisons(response.data);
+      } catch (err) {
+        console.error('Error fetching price comparisons:', err);
       }
     };
+
+    initializeSocket();
+    
+    return () => {
+      socket?.disconnect();
+    };
   }, []);
-
-  const updatePriceComparisons = (data: PriceUpdate) => {
-    setPriceComparisons(prev => 
-      prev.map(product => 
-        product.id === data.productId 
-          ? { ...product, current_price: data.newPrice }
-          : product
-      )
-    );
-  };
-
-  const updateSharedCarts = (data: CartUpdate) => {
-    setSharedCarts(prev => 
-      prev.map(cart => 
-        cart.id === data.cartId 
-          ? { ...cart, items: data.items }
-          : cart
-      )
-    );
-  };
-
-  const fetchProductDetails = async (url: string) => {
-    try {
-      setLoading(true);
-      const response = await axios.post('http://localhost:8000/api/products/details/', { url });
-      setCurrentProduct(response.data);
-      setPriceComparisons(response.data.comparisons || []);
-      setActiveCoupons(response.data.coupons || []);
-    } catch (err) {
-      console.error('Error fetching product details:', err);
-      setError('Failed to fetch product details');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (
