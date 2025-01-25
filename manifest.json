@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Shopping Assistant",
+  "version": "1.0.0",
+  "description": "A smart shopping assistant with real-time price comparisons, coupon suggestions, and collaborative shopping features",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "webNavigation",
+    "notifications"
+  ],
+  "host_permissions": [
+    "*://*.amazon.com/*",
+    "*://*.ebay.com/*",
+    "*://*.walmart.com/*",
+    "*://*.bestbuy.com/*",
+    "*://*.target.com/*"
+  ],
+  "action": {
+    "default_popup": "frontend/out/popup.html",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.amazon.com/*",
+        "*://*.ebay.com/*",
+        "*://*.walmart.com/*",
+        "*://*.bestbuy.com/*",
+        "*://*.target.com/*"
+      ],
+      "js": ["content/content.js"]
+    }
+  ],
+  "icons": {
+    "16": "assets/icon16.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  }
+}
